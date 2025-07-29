@@ -34,3 +34,32 @@ Automatic versioning is planned for the future, but at the moment the version nu
 |Minor|Updated once a batch of features (or a [project](https://github.com/YilianSource/brackeys-bot/projects)) is fully implemented.|
 |Patch|Updated once a new feature is added.|
 |Hotfix|Updated if a feature requires a fix.|
+
+---
+
+# Daily Reward System
+
+This Verse script implements a daily reward system for your UEFN project.
+
+## How to Use
+
+1.  **Add the script to your project:**
+    *   Create a new Verse file in your project and name it `daily_reward_device.verse`.
+    *   Copy and paste the code from `daily_reward.verse` into this new file.
+
+2.  **Add the device to your level:**
+    *   Compile your Verse code.
+    *   Drag and drop the `daily_reward_device` from the Content Browser into your level.
+
+3.  **Configure the device:**
+    *   Select the `daily_reward_device` in your level.
+    *   In the Details panel, you will see a `RewardButton` property.
+    *   Create a new `button_device` in your level.
+    *   Assign the `button_device` from your level to the `RewardButton` property of the `daily_reward_device`.
+
+4.  **Test the system:**
+    *   Start your game.
+    *   Press the button you assigned to the `RewardButton`.
+    *   You should see a message in the console indicating that you have received a reward.
+    *   Wait 24 hours and press the button again to receive another reward and increase your streak.
+    *   If you wait more than 48 hours, your streak will be reset.
