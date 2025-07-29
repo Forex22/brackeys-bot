@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Linq;
-using System.Collections.Generic;
-using System.Text;
 
 using Discord;
 
 using Humanizer;
-using BrackeysBot.Core.Models;
 
 namespace BrackeysBot.Services
 {
@@ -21,20 +18,26 @@ namespace BrackeysBot.Services
 
         public void AddInfraction(IUser user, Infraction infraction)
         {
-            var userData = _data.UserData.GetOrCreate(user.Id);
+            AddInfraction(user.Id, infraction);
+
+            SendInfractionMessageToUser(user, infraction);
+        }
+
+        public void AddInfraction(ulong userId, Infraction infraction) {
+            var userData = _data.UserData.GetOrCreate(userId);
             userData.Infractions.Add(infraction);
 
             _data.SaveUserData();
-
-            SendInfractionMessageToUser(user, infraction);
         }
 
-        public void AddTemporaryInfraction(TemporaryInfractionType type, IUser user, IUser moderator, TimeSpan duration, string reason = "")
+        public Infraction AddTemporaryInfraction(TemporaryInfractionType type, IUser user, IUser moderator, TimeSpan duration, string reason = "", string additionalInfo = "")
         {
-            Infraction infraction = AddTemporaryInfraction(type, user.Id, moderator, duration, reason);
-            SendInfractionMessageToUser(user, infraction);
+            Infraction infraction = AddTemporaryInfraction(type, user.Id, moderator, duration, reason, additionalInfo);
+            SendTemporaryInfractionMessageToUser(user, infraction, duration);
+            
+            return infraction;
         }
-        public Infraction AddTemporaryInfraction(TemporaryInfractionType type, ulong userId, IUser moderator, TimeSpan duration, string reason = "")
+        public Infraction AddTemporaryInfraction(TemporaryInfractionType type, ulong userId, IUser moderator, TimeSpan duration, string reason = "", string additionalInfo = "")
         {
             var userData = _data.UserData.GetOrCreate(userId);
 
@@ -46,7 +49,7 @@ namespace BrackeysBot.Services
                 .WithType(type.AsInfractionType())
                 .WithModerator(moderator)
                 .WithDescription(reason)
-                .WithAdditionalInfo($"Duration: {duration.Humanize(7)}");
+                .WithAdditionalInfo(additionalInfo + "\n" + $"Duration: {duration.Humanize(7)}");
 
             userData.Infractions.Add(infraction);
 
@@ -65,10 +68,13 @@ namespace BrackeysBot.Services
         }
 
         public int ClearInfractions(IUser user)
+            => ClearInfractions(user.Id);
+
+        public int ClearInfractions(ulong userId) 
         {
-            if (_data.UserData.HasUser(user.Id))
+            if (_data.UserData.HasUser(userId))
             {
-                UserData userData = _data.UserData.GetUser(user.Id);
+                UserData userData = _data.UserData.GetUser(userId);
                 int infractionCount = userData.Infractions.Count;
                 userData.Infractions.Clear();
 
@@ -78,6 +84,7 @@ namespace BrackeysBot.Services
             }
             return 0;
         }
+
         public bool DeleteInfraction(int id)
         {
             if (TryGetInfraction(id, out Infraction _, out ulong userId))
@@ -99,6 +106,22 @@ namespace BrackeysBot.Services
             return data != null;
         }
 
+        public bool TryUpdateInfraction(int id, string message, out ulong userId, out string oldMessage)
+        {
+            if (TryGetInfraction(id, out Infraction infraction, out userId))
+            {
+                oldMessage = infraction.Description;
+                infraction.WithDescription(message);
+
+                DeleteInfraction(id);
+                AddInfraction(userId, infraction);
+                return true;
+            }
+
+            oldMessage = null;
+            return false;
+        }
+
         public int RequestInfractionID()
             => _data.UserData.Users.Count > 0
                 ? 1 + _data.UserData.Users.Max(u => u.Infractions?.Count > 0 ? u.Infractions.Max(i => i.ID) : -1)
@@ -117,22 +140,29 @@ namespace BrackeysBot.Services
 
             await user.TrySendMessageAsync(message);
         }
+        private async void SendTemporaryInfractionMessageToUser(IUser user, Infraction infraction, TimeSpan duration)
+        {
+            // Only send temporary infraction messages
+            if (infraction.Type != InfractionType.TemporaryBan && infraction.Type != InfractionType.TemporaryMute)
+                return;
+
+            UserData userData = _data.UserData.GetUser(user.Id);
+            int infractionCount = userData.Infractions.Count;
+            string message = $"Hey there! You were **{GetInfractionTypeString(infraction.Type)}** for **{duration.Humanize(7)}** for **{infraction.Description}**! You currently have **{infractionCount}** infraction(s). Be careful; accumulating infractions may result in restricted access or even (permanent) removal from the server!";
+
+            await user.TrySendMessageAsync(message);
+        }
 
         private string GetInfractionTypeString(InfractionType type) 
         {
-            switch (type) 
+            return type switch
             {
-                case InfractionType.Kick:
-                    return "Kicked";
-                case InfractionType.Mute:
-                    return "Muted";
-                case InfractionType.Warning:
-                    return "Warned";
-                case InfractionType.TemporaryMute:
-                    return "Temporarily Muted";
-                default:
-                    return "Given an Infraction";  
-            }
+                InfractionType.Kick => "kicked",
+                InfractionType.Mute => "muted",
+                InfractionType.Warning => "warned",
+                InfractionType.TemporaryMute => "temporarily muted",
+                _ => "given an infraction",
+            };
         }
     }
 }

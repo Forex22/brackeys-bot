@@ -1,8 +1,8 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
+using BrackeysBot.Core.Models;
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 
 namespace BrackeysBot.Commands
 {
@@ -11,12 +11,13 @@ namespace BrackeysBot.Commands
         [Command("warn")]
         [Summary("Warns a user with a specified reason.")]
         [Remarks("warn <user> <reason>")]
-        [RequireModerator]
+        [RequireHelper]
         public async Task WarnUserAsync(
-            [Summary("The user to warn.")] SocketGuildUser user,
+            [Summary("The user to warn.")] GuildUserProxy user,
             [Summary("The reason to warn the user."), Remainder] string reason)
         {
-            UserData data = Data.UserData.GetUser(user.Id);
+            ulong userId = user.HasValue ? user.GuildUser.Id : user.ID;
+            UserData data = Data.UserData.GetUser(userId);
 
             EmbedBuilder builder = new EmbedBuilder()
                 .WithColor(Color.Orange);
@@ -31,12 +32,18 @@ namespace BrackeysBot.Commands
                 previousInfractions = string.Join('\n', data.Infractions.OrderByDescending(i => i.Time).Select(i => i.ToString()));
             }
 
-            Moderation.AddInfraction(user, Infraction.Create(Moderation.RequestInfractionID())
+            Infraction infr = Infraction.Create(Moderation.RequestInfractionID())
                 .WithType(InfractionType.Warning)
                 .WithModerator(Context.User)
-                .WithDescription(reason));
+                .WithDescription(reason);
+
+            if (user.HasValue)
+                Moderation.AddInfraction(user.GuildUser, infr);
+            else 
+                Moderation.AddInfraction(user.ID, infr);
 
             await ModerationLog.CreateEntry(ModerationLogEntry.New
+                .WithInfractionId(infr.ID)
                 .WithDefaultsFromContext(Context)
                 .WithActionType(ModerationActionType.Warn)
                 .WithReason(reason)

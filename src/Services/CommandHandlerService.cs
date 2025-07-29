@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 
 using Discord;
@@ -16,6 +16,7 @@ namespace BrackeysBot.Services
         private readonly CommandService _commands;
         private readonly CustomCommandService _customCommands;
         private readonly DataService _dataService;
+        private readonly CollaborationService _collabService;
         private readonly IServiceProvider _provider;
         private readonly LoggingService _log;
 
@@ -27,6 +28,7 @@ namespace BrackeysBot.Services
             CommandService commands,
             CustomCommandService customCommands,
             DataService dataService,
+            CollaborationService collabService,
             IServiceProvider provider,
             LoggingService log)
         {
@@ -34,6 +36,7 @@ namespace BrackeysBot.Services
             _commands = commands;
             _customCommands = customCommands;
             _dataService = dataService;
+            _collabService = collabService;
             _provider = provider;
             _log = log;
         }
@@ -69,11 +72,16 @@ namespace BrackeysBot.Services
                     } 
                     else 
                     {
-                        await new EmbedBuilder()
-                            .WithColor(Color.Red)
-                            .WithDescription($"Command {SanitizeMarkdown(customCommandName)} does not exist!")
-                            .Build()
-                            .SendToChannel(context.Channel);
+                        // Zombie code is my favourite code 🧟
+                        // Nah but seriously, we don't need this anymore because it will conflict with Marco's macro listening.
+                        // But I'd rather not just outright delete it because reasons that I don't really have the energy to list.
+                        // Anyway, here's Wonderwall.
+
+                        // await new EmbedBuilder()
+                        //     .WithColor(Color.Red)
+                        //     .WithDescription($"Command {SanitizeMarkdown(customCommandName)} does not exist!")
+                        //     .Build()
+                        //     .SendToChannel(context.Channel);
                     }
                 }
                 else if (result.Error == CommandError.UnmetPrecondition)
@@ -133,18 +141,27 @@ namespace BrackeysBot.Services
 
         private async Task HandleCommandAsync(SocketMessage s)
         {
-            if (!(s is SocketUserMessage msg)) return;
+            if (!(s is SocketUserMessage msg) || msg.Author.IsBot) return;
+
+            int argPos = 0;
             if (!(s.Channel is IGuildChannel))
             {
-                if (!s.Author.IsBot)
+                if (_collabService.IsActiveUser(msg.Author) &&
+                    !msg.HasStringPrefix(_dataService.Configuration.Prefix, ref argPos))
+                {
+                    await _collabService.Converse(msg);
+                }
+                else
                 {
                     await s.Channel.SendMessageAsync("I'm not available in DMs. Please use the Brackeys Discord Server to communicate with me!");
                 }
-            }
-
-            int argPos = 0;
-            if (!msg.HasStringPrefix(_dataService.Configuration.Prefix, ref argPos) ||
-                msg.Author.IsBot)
+                return;
+            }           
+            else if (!msg.HasStringPrefix(_dataService.Configuration.Prefix, ref argPos))
+                return;
+            
+            if ((msg.Content.Contains("@everyone") || msg.Content.Contains("@here"))
+                && (msg.Author as IGuildUser).GetPermissionLevel(_dataService.Configuration) < PermissionLevel.Administrator)
                 return;
 
             var context = new BrackeysBotContext(msg, _provider);

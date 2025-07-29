@@ -43,6 +43,9 @@ namespace BrackeysBot.Services
             
             if (ContainsBlockedWord(content)) 
                 await DeleteMsgAndInfractUser(s as SocketUserMessage, content);
+
+            else if (await ContainsBlockedInvite(content))
+                await DeleteMsgAndInfractUser(s as SocketUserMessage, content); // ??
         }
         public async Task CheckEditedMessageAsync(Cacheable<IMessage, ulong> cacheable, SocketMessage s, ISocketMessageChannel channel)
         {
@@ -52,7 +55,7 @@ namespace BrackeysBot.Services
             await CheckMessageAsync(s);
         }
 
-        private bool ContainsBlockedWord(string msg) 
+        public bool ContainsBlockedWord(string msg) 
         {
             string[] blockedWords = _dataService.Configuration.BlockedWords;
 
@@ -60,6 +63,25 @@ namespace BrackeysBot.Services
                 return false;
 
             return blockedWords.Any(str => new Regex($".*{str}.*").IsMatch(msg.ToLowerInvariant()));
+        }
+
+        private async Task<bool> ContainsBlockedInvite(string msg)
+        {
+            const string linkRegex = @"discord(\.gg\/|\.com\/invite\/)\w+";
+            string link = Regex.Match(msg, linkRegex).Value;
+
+            if (link == string.Empty)
+                return false;
+
+            ulong[] blockedGuilds = _dataService.Configuration.BlockedGuildIds;
+            if (blockedGuilds == null)
+                return false;
+
+            var guildInvite = await _discord.GetInviteAsync(link);
+
+            var guildId = guildInvite?.GuildId;
+
+            return blockedGuilds.Any(x => x == guildId);
         }
 
         private bool CanUseFilteredWords(SocketUserMessage msg)
@@ -80,14 +102,34 @@ namespace BrackeysBot.Services
             //  are at least certain the message got deleted.
             await s.DeleteAsync();
 
-            _moderationService.AddInfraction(target, 
-                    Infraction.Create(_moderationService.RequestInfractionID())
-                    .WithType(InfractionType.Warning)
-                    .WithModerator(_discord.CurrentUser)
-                    .WithAdditionalInfo($"[Go near message]({url})\n**{message}**")
-                    .WithDescription("Used filtered word"));
+            Infraction infraction;
+
+            if (_dataService.Configuration.MuteUserIfUsingFilteredWord) 
+            {
+                IRole mutedRole = _discord.GetGuild(_dataService.Configuration.GuildID).GetRole(_dataService.Configuration.MutedRoleID);
+                await target.AddRoleAsync(mutedRole);
+
+                _dataService.UserData.GetOrCreate(target.Id).Muted = true;
+                _dataService.SaveUserData();
+
+                TimeSpan muteDuration = TimeSpan.FromMilliseconds(_dataService.Configuration.FilteredWordMuteDuration);
+                infraction = _moderationService.AddTemporaryInfraction(TemporaryInfractionType.TempMute, 
+                        target, _discord.CurrentUser, muteDuration, 
+                        "Used filtered word", $"[Go near message]({url})\n**{message}**");
+            }
+            else 
+            {
+                infraction = Infraction.Create(_moderationService.RequestInfractionID())
+                        .WithType(InfractionType.Warning)
+                        .WithModerator(_discord.CurrentUser)
+                        .WithAdditionalInfo($"[Go near message]({url})\n**{message}**")
+                        .WithDescription("Used filtered word");
+
+                _moderationService.AddInfraction(target, infraction);
+            }
 
             await _loggingService.CreateEntry(ModerationLogEntry.New
+                    .WithInfractionId(infraction.ID)
                     .WithActionType(ModerationActionType.Filtered)
                     .WithTarget(target)
                     .WithReason($"[Go near message]({url})\n**{message}**")

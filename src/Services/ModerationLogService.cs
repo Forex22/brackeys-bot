@@ -56,31 +56,43 @@ namespace BrackeysBot.Services
                 .AddFieldConditional(logEntry.Channel != null, "Channel", logEntry.Channel?.Mention, true)
                 .AddFieldConditional(logEntry.Duration != null, "Duration", (logEntry.Duration ?? TimeSpan.Zero).Humanize(7), true)
                 .AddFieldConditional(logEntry.AdditionalInfo != null, "Additional info", logEntry.AdditionalInfo)
-                .WithFooter($"{logEntry.Time.ToTimeString()} | {logEntry.Time.ToDateString()}")
+                .WithFooter($"{logEntry.Time.ToTimeString()} | {logEntry.Time.ToDateString()}" 
+                                + ((logEntry.InfractionId > -1) ? $" | {logEntry.InfractionId}" : ""))
                 .Build();
         private Embed CreateEmbedResponse(ModerationLogEntry logEntry)
         {
             EmbedBuilder builder = new EmbedBuilder();
 
             StringBuilder author = new StringBuilder($"[{logEntry.ActionType.Humanize()}]");
-            StringBuilder description = new StringBuilder();
-
+            List<string> footnotes = new List<string>();
+            
             if (logEntry.HasTarget)
             {
                 if (logEntry.Target != null)
-                    author.Append($" {logEntry.Target.ToString()}");
+                    author.Append($" {logEntry.Target.Username}#{logEntry.Target.Discriminator}");
                 else
-                    author.Append($" {logEntry.TargetMention}");
+                    author.Append($" {logEntry.TargetID}");
+                
+                footnotes.Add(logEntry.TargetID.ToString());
             }
-            if (logEntry.Reason != Commands.ModerationModule.DefaultReason)
-                description.AppendLine(logEntry.Reason).AppendLine();
+
+            if (logEntry.InfractionId > -1)
+                footnotes.Add($"Infraction ID: {logEntry.InfractionId}");
+
+            // Split user and infraction ID by bullet point
+            builder.WithFooter(string.Join(" \u2022 ", footnotes));
+            
+            // First display the Reason, then any additional fields; looks better.
+            builder.AddFieldConditional(!string.IsNullOrWhiteSpace(logEntry.Reason), "Reason", logEntry.Reason);
+
+            // AddFieldConditional won't work because the logEntry.Duration.Value will be resolved first, which can be a NullReferenceException because
+            //  it is not guarantueed Duration will be non-null.
             if (logEntry.Duration.HasValue)
-                description.AppendLine($"Duration: {logEntry.Duration.Value.Humanize(7)}");
+                builder.AddField("Duration", logEntry.Duration.Value.Humanize(7));
 
             return builder
                 .WithAuthor(author.ToString(), logEntry.Target?.EnsureAvatarUrl())
                 .WithColor(GetColorForAction(logEntry.ActionType))
-                .WithDescription(description.ToString())
                 .Build();
         }
 
@@ -102,6 +114,7 @@ namespace BrackeysBot.Services
                 case ModerationActionType.Warn:
                 case ModerationActionType.DeletedInfraction:
                 case ModerationActionType.ClearInfractions:
+                case ModerationActionType.UpdatedInfraction:
                     return Color.Orange;
 
                 case ModerationActionType.ClearMessages:

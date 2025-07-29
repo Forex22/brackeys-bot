@@ -34,6 +34,11 @@ namespace BrackeysBot
         [ConfigDisplay(ConfigDisplayAttribute.Mode.RoleId)]
         public ulong ModeratorRoleID { get; set; }
 
+        [YamlMember(Alias = "helperRoleId")]
+        [Description("The ID of the role that identifies helpers.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.RoleId)]
+        public ulong HelperRoleID { get; set; }
+
         [YamlMember(Alias = "mutedRoleId")]
         [Description("The ID of the role that mutes someone.")]
         [ConfigDisplay(ConfigDisplayAttribute.Mode.RoleId)]
@@ -69,6 +74,36 @@ namespace BrackeysBot
         [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
         public ulong[] AllowedCodeblockChannelIDs { get; set; }
 
+        [YamlMember(Alias = "amaChannelId")]
+        [Description("The channel to extract ama questions from")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
+        public ulong AmaChannelID { get; set; }
+
+        [YamlMember(Alias = "paidChannelId")]
+        [Description("Channel to post paid collaboration embeds.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
+        public ulong PaidChannelId { get; set; }
+
+        [YamlMember(Alias = "hobbyChannelId")]
+        [Description("Channel to post hobby collaboration embeds.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
+        public ulong HobbyChannelId { get; set; }
+
+        [YamlMember(Alias = "gametestChannelId")]
+        [Description("Channel to post gametest collaboration embeds.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
+        public ulong GametestChannelId { get; set; }
+
+        [YamlMember(Alias = "mentorChannelId")]
+        [Description("Channel to post mentor collaboration embeds.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.ChannelId)]
+        public ulong MentorChannelId { get; set; }
+        
+        [YamlMember(Alias = "noCollabRoleId")]
+        [Description("Role ID of the no collab role.")]
+        [ConfigDisplay(ConfigDisplayAttribute.Mode.RoleId)]
+        public ulong NoCollabRoleId { get; set; }
+
         #endregion
 
         [YamlMember(Alias = "moduleConfigs")]
@@ -88,6 +123,10 @@ namespace BrackeysBot
         [Description("A list of regex for words which should automatically be deleted.")]
         public string[] BlockedWords { get; set; }
         
+        [YamlMember(Alias = "blockedGuildIds")]
+        [Description("A list of guild IDs for guild invites which should automatically be deleted.")]
+        public ulong[] BlockedGuildIds { get; set; }
+
         [YamlMember(Alias = "clearMessageMaxHistory")]
         [Description("The maximum messages history count to fetch when clearing messages.")]
         public int ClearMessageMaxHistory { get; set; }
@@ -112,7 +151,29 @@ namespace BrackeysBot
         [YamlMember(Alias = "endorseTimeoutMillis")]
         [Description("The minimum time between being able to endorse the same user again, in milliseconds")]
         public int EndorseTimeoutMillis { get; set; }
+        
+        [YamlMember(Alias = "latexTimeoutMillis")]
+        [Description("The minimum time between being able to use the latex command again, in milliseconds")]
+        public int LatexTimeoutMillis { get; set; }
+ 
+        [YamlMember(Alias = "collabTimeoutMillis")]
+        [Description("The minimum time between being able to use the collab command again, in milliseconds")]
+        public int CollabTimeoutMillis { get; set; }
 
+        [YamlMember(Alias = "codeFormatterDeleteTresholdMillis")]
+        [Description("The maximum time before a message can be deleted when the format code command is used by a guru, in milliseconds")]
+        public int CodeFormatterDeleteTresholdMillis { get; set; }
 
+        [YamlMember(Alias = "helperMuteMaxDuration")]
+        [Description("The maximum amount of time a helper may mute a person")]
+        public int HelperMuteMaxDuration { get; set; }
+
+        [YamlMember(Alias = "muteUserIfUsingFilteredWord")]
+        [Description("Whether or not to mute people using the filtered word")]
+        public bool MuteUserIfUsingFilteredWord { get; set; }
+
+        [YamlMember(Alias = "filteredWordMuteDuration")]
+        [Description("The Duration to mute a person for when using a filtered word")]
+        public int FilteredWordMuteDuration { get; set; }
     }
 }
