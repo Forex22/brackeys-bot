@@ -48,7 +48,7 @@ rebirth_movement_limiter := class(creative_device):
     GetPlayerRebirths(Player:player):int=
         # You need to implement your own logic to track rebirths.
         # For example, you might have a map that stores rebirths per player:
-        # var PlayerRebirths : [player]int = map{}
+        # var PlayerRebirths : map(player, int) = map{}
         # return PlayerRebirths[Player]
         return 0 # Default to 0
 
